@@ -1,7 +1,7 @@
 {
 "name": "bkstore-pro",
 "version": "1.0.0",
-"description": "BK STORE PRO backend",
+"description": "BK Store backend",
 "main": "server.js",
 "type": "commonjs",
 "engines": {
