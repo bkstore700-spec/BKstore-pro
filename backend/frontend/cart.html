@@ -7,8 +7,11 @@
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body data-page="cart">
+
   <div class="container">
+
     <div class="navbar">
       <a class="brand" href="index.html">
         <img src="logo.png" class="logo-small" />
@@ -33,11 +36,14 @@
     <div class="grid" id="cartList"></div>
 
     <div class="panel">
+
       <h3 style="margin:0 0 10px 0">معلومات الزبون</h3>
+
       <div class="row">
         <input id="cname" placeholder="الاسم" />
         <input id="cphone" placeholder="رقم الهاتف" />
       </div>
+
       <div style="margin-top:10px">
         <input id="caddress" placeholder="العنوان" />
       </div>
@@ -49,12 +55,42 @@
       </div>
 
       <div style="margin-top:12px">
-        <button class="btn red" id="confirmBtn">تأكيد وإرسال عبر WhatsApp</button>
+        <button class="btn red" id="confirmBtn">
+          تأكيد وإرسال عبر WhatsApp
+        </button>
       </div>
-      <div class="small" style="margin-top:8px">سيتم خصم المخزون تلقائياً بعد الطلب ✅</div>
+
+      <div class="small" style="margin-top:8px">
+        سيتم خصم المخزون تلقائياً بعد الطلب ✅
+      </div>
+
     </div>
+
   </div>
 
+  <!-- MAIN SCRIPT -->
   <script src="main.js"></script>
+
+  <!-- FORCE BUTTON FIX -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function(){
+
+      const btn = document.getElementById("confirmBtn");
+
+      if(btn){
+        btn.addEventListener("click", function(){
+
+          if(typeof submitOrder === "function"){
+            submitOrder();
+          }else{
+            alert("Order function not loaded");
+          }
+
+        });
+      }
+
+    });
+  </script>
+
 </body>
 </html>
