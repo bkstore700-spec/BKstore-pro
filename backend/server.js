@@ -11,9 +11,10 @@ const db = require("./db");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-/* ---------- PATHS ---------- */
+/* TRUST PROXY (مهم لRailway) */
+app.set("trust proxy", 1);
 
-// frontend داخل backend
+/* PATHS */
 const frontendPath = path.join(__dirname, "frontend");
 const uploadsPath = path.join(__dirname, "uploads");
 
@@ -21,15 +22,13 @@ if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 
-/* ---------- ENV ---------- */
-
+/* ENV */
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
-const SESSION_SECRET = process.env.SESSION_SECRET || "secret123";
+const SESSION_SECRET = process.env.SESSION_SECRET || "supersecret";
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
 
-/* ---------- MIDDLEWARE ---------- */
-
+/* MIDDLEWARE */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -46,18 +45,17 @@ app.use(
   })
 );
 
-/* ---------- STATIC ---------- */
-
+/* STATIC FILES */
 app.use("/uploads", express.static(uploadsPath));
 app.use(express.static(frontendPath));
 
-/* ---------- HELPERS ---------- */
-
+/* ADMIN CHECK */
 function isAdmin(req, res, next) {
   if (req.session && req.session.admin) return next();
   res.status(401).json({ error: "Unauthorized" });
 }
 
+/* JSON PARSE */
 function safeParse(x, fallback) {
   try {
     return JSON.parse(x);
@@ -66,8 +64,7 @@ function safeParse(x, fallback) {
   }
 }
 
-/* ---------- MULTER ---------- */
-
+/* MULTER */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsPath),
   filename: (req, file, cb) => {
@@ -78,18 +75,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-/* ---------- CONFIG ---------- */
-
+/* CONFIG */
 app.get("/api/config", (req, res) => {
   res.json({ whatsapp: WHATSAPP_NUMBER });
 });
 
-/* ---------- AUTH ---------- */
-
+/* ADMIN LOGIN */
 app.post("/api/admin/login", (req, res) => {
   const { username, password } = req.body;
 
   const okUser = username === ADMIN_USER;
+
   const okPass =
     ADMIN_PASS.startsWith("$2")
       ? bcrypt.compareSync(password, ADMIN_PASS)
@@ -103,16 +99,17 @@ app.post("/api/admin/login", (req, res) => {
   res.status(401).json({ error: "Wrong credentials" });
 });
 
+/* ADMIN LOGOUT */
 app.post("/api/admin/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
+/* CHECK ADMIN */
 app.get("/api/admin/me", (req, res) => {
   res.json({ admin: !!req.session.admin });
 });
 
-/* ---------- PRODUCTS ---------- */
-
+/* GET PRODUCTS */
 app.get("/api/products", (req, res) => {
   const rows = db.prepare("SELECT * FROM products ORDER BY id DESC").all();
 
@@ -125,8 +122,7 @@ app.get("/api/products", (req, res) => {
   res.json(products);
 });
 
-/* ---------- CREATE PRODUCT ---------- */
-
+/* CREATE PRODUCT */
 app.post(
   "/api/products",
   isAdmin,
@@ -161,8 +157,7 @@ app.post(
   }
 );
 
-/* ---------- ORDERS ---------- */
-
+/* CREATE ORDER */
 app.post("/api/orders", (req, res) => {
   try {
     const { name, phone, address, items } = req.body;
@@ -183,11 +178,12 @@ app.post("/api/orders", (req, res) => {
   }
 });
 
-/* ---------- STATS ---------- */
-
+/* ADMIN STATS */
 app.get("/api/admin/stats", isAdmin, (req, res) => {
   const productsCount = db.prepare("SELECT COUNT(*) c FROM products").get().c;
+
   const ordersCount = db.prepare("SELECT COUNT(*) c FROM orders").get().c;
+
   const totalSales =
     db.prepare("SELECT SUM(total) s FROM orders").get().s || 0;
 
@@ -198,20 +194,17 @@ app.get("/api/admin/stats", isAdmin, (req, res) => {
   });
 });
 
-/* ---------- HOME ---------- */
-
+/* HOME */
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-/* ---------- FALLBACK ---------- */
-
+/* SPA FALLBACK */
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-/* ---------- START SERVER ---------- */
-
+/* START SERVER */
 app.listen(PORT, () => {
   console.log("BK STORE PRO running on port", PORT);
 });
