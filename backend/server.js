@@ -11,7 +11,6 @@ const db = require("./db");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Railway proxy fix
 app.set("trust proxy", 1);
 
 // ENV
@@ -20,7 +19,8 @@ const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
 const SESSION_SECRET = process.env.SESSION_SECRET || "change_me";
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
 
-const frontendPath = path.join(__dirname, "../frontend");
+// IMPORTANT
+const frontendPath = path.join(__dirname, "frontend");
 const uploadsPath = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadsPath)) {
@@ -39,7 +39,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: true
+      secure: false
     }
   })
 );
@@ -201,13 +201,16 @@ app.post("/api/orders", (req, res) => {
 app.get("/api/admin/stats", isAdmin, (req, res) => {
   const productsCount = db.prepare("SELECT COUNT(*) c FROM products").get().c;
   const ordersCount = db.prepare("SELECT COUNT(*) c FROM orders").get().c;
-  const totalSales = db.prepare("SELECT SUM(total) s FROM orders").get().s || 0;
 
   res.json({
     productsCount,
-    ordersCount,
-    totalSales
+    ordersCount
   });
+});
+
+// ---------- FRONTEND ----------
+app.get("/", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // ---------- SPA fallback ----------
@@ -215,8 +218,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// ---------- Start Server ----------
+// ---------- Start ----------
 app.listen(PORT, () => {
-  console.log("✅ BK STORE PRO LIVE");
+  console.log("BK STORE PRO LIVE");
   console.log(`Server running on port ${PORT}`);
 });

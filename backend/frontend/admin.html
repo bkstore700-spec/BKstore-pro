@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Panel</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="admin">
+  <div class="container">
+    <div class="navbar">
+      <a class="brand" href="index.html">
+        <img src="logo.png" class="logo-small" />
+        <div>
+          <div class="title">BK STORE</div>
+          <div class="sub">Admin Panel</div>
+        </div>
+      </a>
+
+      <div class="actions">
+        <a class="btn" href="index.html">Store</a>
+        <button class="btn red" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 10px 0">📊 إحصائيات</h2>
+      <div class="row">
+        <div class="panel" style="margin:0"><div class="muted">Products</div><div class="title" id="stProducts">0</div></div>
+        <div class="panel" style="margin:0"><div class="muted">Orders</div><div class="title" id="stOrders">0</div></div>
+        <div class="panel" style="margin:0"><div class="muted">Total Sales</div><div class="title" id="stSales">0</div></div>
+        <div class="panel" style="margin:0"><div class="muted">Today Orders</div><div class="title" id="stToday">0</div></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="muted">Today Sales</div>
+        <div class="badge"><b id="stTodaySales">0</b></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="muted">Per day (last 7)</div>
+        <div class="kv" id="perDay"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="muted">Low stock</div>
+        <div class="kv" id="lowStock"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 10px 0">📦 إضافة / تعديل منتج</h2>
+
+      <form id="productForm">
+        <input id="pid" type="hidden" />
+
+        <div class="row">
+          <input id="ptitle" placeholder="Title" />
+          <input id="pprice" placeholder="Price" type="number" step="0.01" />
+        </div>
+
+        <div style="margin-top:10px" class="row">
+          <input id="sS" placeholder="Stock S" type="number" min="0" />
+          <input id="sM" placeholder="Stock M" type="number" min="0" />
+          <input id="sL" placeholder="Stock L" type="number" min="0" />
+        </div>
+
+        <div style="margin-top:10px" class="row">
+          <input id="sXL" placeholder="Stock XL" type="number" min="0" />
+          <input id="sXXL" placeholder="Stock XXL" type="number" min="0" />
+          <button type="button" class="btn" id="clearBtn">Clear</button>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+          <div class="muted">Upload images per kit (multiple)</div>
+          <div style="margin-top:10px" class="row">
+            <div>
+              <div class="small">HOME</div>
+              <input id="imgHome" type="file" accept="image/*" multiple />
+            </div>
+            <div>
+              <div class="small">AWAY</div>
+              <input id="imgAway" type="file" accept="image/*" multiple />
+            </div>
+          </div>
+          <div style="margin-top:10px" class="row">
+            <div>
+              <div class="small">THIRD</div>
+              <input id="imgThird" type="file" accept="image/*" multiple />
+            </div>
+            <div>
+              <div class="small">FOURTH</div>
+              <input id="imgFourth" type="file" accept="image/*" multiple />
+            </div>
+          </div>
+          <div class="small" style="margin-top:8px">* فالتعديل: تقدر تحيد صور من gallery تحت.</div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+          <button type="button" class="btn red" id="saveBtn">Save</button>
+          <span class="badge" id="saveMsg" style="display:none"></span>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+          <div class="muted">Current images (when editing)</div>
+          <div id="editImages"></div>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 10px 0">🧾 المنتجات</h2>
+      <div class="grid" id="adminProducts"></div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin:0 0 10px 0">📑 الطلبات</h2>
+
+      <div class="row" style="align-items:center">
+        <input id="qSearch" placeholder="Search by name/phone" />
+        <button class="btn" id="searchBtn">Search</button>
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+
+      <div style="margin-top:10px" class="row" style="align-items:center">
+        <button class="btn" id="prevPage">Prev</button>
+        <span class="badge">Page <b id="pg">1</b> / <b id="pgMax">1</b></span>
+        <button class="btn" id="nextPage">Next</button>
+      </div>
+
+      <div style="overflow:auto; margin-top:10px">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Phone</th><th>Payment</th><th>Total</th><th>Date</th><th>Items</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
