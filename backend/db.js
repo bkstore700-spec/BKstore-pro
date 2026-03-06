@@ -1,30 +1,43 @@
-const path = require("path");
 const Database = require("better-sqlite3");
+const path = require("path");
 
-const db = new Database(path.join(__dirname, "store.db"));
+const dbPath = path.join(__dirname, "store.db");
 
-db.pragma("journal_mode = WAL");
+const db = new Database(dbPath);
 
-db.exec(`
+// ===== PRODUCTS TABLE =====
+db.prepare(`
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  price REAL NOT NULL,
-  sizes TEXT NOT NULL,              -- JSON {S,M,L,XL,XXL}
-  kits TEXT NOT NULL,               -- JSON {home:[], away:[], third:[], fourth:[]}
+  title TEXT,
+  price REAL,
+  sizes TEXT,
+  kits TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
+)
+`).run();
 
+// ===== ORDERS TABLE =====
+db.prepare(`
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  address TEXT NOT NULL,
-  payment_method TEXT NOT NULL DEFAULT 'COD',
-  items TEXT NOT NULL,              -- JSON [{productId,title,kit,size,qty,unitPrice}]
-  total REAL NOT NULL,
+  name TEXT,
+  phone TEXT,
+  address TEXT,
+  items TEXT,
+  total REAL,
+  payment_method TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-`);
+)
+`).run();
+
+// ===== SAFE MIGRATION =====
+try {
+  db.prepare(`ALTER TABLE orders ADD COLUMN total REAL`).run();
+} catch {}
+
+try {
+  db.prepare(`ALTER TABLE orders ADD COLUMN payment_method TEXT`).run();
+} catch {}
 
 module.exports = db;
