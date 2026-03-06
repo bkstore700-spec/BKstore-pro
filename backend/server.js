@@ -11,19 +11,24 @@ const db = require("./db");
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.set("trust proxy", 1);
+/* ---------- PATHS ---------- */
 
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
-const SESSION_SECRET = process.env.SESSION_SECRET || "change_me";
-const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
-
-const frontendPath = path.join(__dirname, "../frontend");
+// frontend داخل backend
+const frontendPath = path.join(__dirname, "frontend");
 const uploadsPath = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
+
+/* ---------- ENV ---------- */
+
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
+const SESSION_SECRET = process.env.SESSION_SECRET || "secret123";
+const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
+
+/* ---------- MIDDLEWARE ---------- */
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -36,87 +41,55 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: true
+      secure: false
     }
   })
 );
 
+/* ---------- STATIC ---------- */
+
 app.use("/uploads", express.static(uploadsPath));
 app.use(express.static(frontendPath));
 
+/* ---------- HELPERS ---------- */
+
 function isAdmin(req, res, next) {
   if (req.session && req.session.admin) return next();
-  return res.status(401).json({ error: "Unauthorized" });
+  res.status(401).json({ error: "Unauthorized" });
 }
 
-function safeJsonParse(str, fallback) {
+function safeParse(x, fallback) {
   try {
-    return JSON.parse(str);
+    return JSON.parse(x);
   } catch {
     return fallback;
   }
 }
 
-function normalizeSizes(input) {
-  const base = { S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
-  const obj =
-    typeof input === "string"
-      ? safeJsonParse(input || "{}", {})
-      : input || {};
-
-  for (const k of Object.keys(base)) {
-    const v = Number(obj[k] ?? 0);
-    base[k] = Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
-  }
-
-  return base;
-}
-
-function normalizeKits(input) {
-  const base = { home: [], away: [], third: [], fourth: [] };
-  const obj =
-    typeof input === "string"
-      ? safeJsonParse(input || "{}", {})
-      : input || {};
-
-  for (const k of Object.keys(base)) {
-    const arr = Array.isArray(obj[k]) ? obj[k] : [];
-    base[k] = arr.map(x => String(x || "").trim()).filter(Boolean);
-  }
-
-  return base;
-}
-
-function fileToUrl(f) {
-  return `/uploads/${f.filename}`;
-}
+/* ---------- MULTER ---------- */
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsPath),
   filename: (req, file, cb) => {
     const safe = file.originalname.replace(/[^\w.\-]+/g, "_");
-    cb(
-      null,
-      Date.now() +
-        "_" +
-        Math.random().toString(16).slice(2) +
-        "_" +
-        safe
-    );
+    cb(null, Date.now() + "_" + safe);
   }
 });
 
 const upload = multer({ storage });
 
+/* ---------- CONFIG ---------- */
+
 app.get("/api/config", (req, res) => {
   res.json({ whatsapp: WHATSAPP_NUMBER });
 });
 
+/* ---------- AUTH ---------- */
+
 app.post("/api/admin/login", (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password } = req.body;
 
   const okUser = username === ADMIN_USER;
-
   const okPass =
     ADMIN_PASS.startsWith("$2")
       ? bcrypt.compareSync(password, ADMIN_PASS)
@@ -127,7 +100,7 @@ app.post("/api/admin/login", (req, res) => {
     return res.json({ ok: true });
   }
 
-  return res.status(401).json({ error: "Wrong credentials" });
+  res.status(401).json({ error: "Wrong credentials" });
 });
 
 app.post("/api/admin/logout", (req, res) => {
@@ -135,41 +108,43 @@ app.post("/api/admin/logout", (req, res) => {
 });
 
 app.get("/api/admin/me", (req, res) => {
-  res.json({ admin: !!(req.session && req.session.admin) });
+  res.json({ admin: !!req.session.admin });
 });
+
+/* ---------- PRODUCTS ---------- */
 
 app.get("/api/products", (req, res) => {
-  const rows = db
-    .prepare("SELECT * FROM products ORDER BY id DESC")
-    .all();
+  const rows = db.prepare("SELECT * FROM products ORDER BY id DESC").all();
 
-  res.json(
-    rows.map(p => ({
-      ...p,
-      sizes: normalizeSizes(p.sizes),
-      kits: normalizeKits(p.kits)
-    }))
-  );
+  const products = rows.map(p => ({
+    ...p,
+    sizes: safeParse(p.sizes, {}),
+    kits: safeParse(p.kits, {})
+  }));
+
+  res.json(products);
 });
+
+/* ---------- CREATE PRODUCT ---------- */
 
 app.post(
   "/api/products",
   isAdmin,
   upload.fields([
-    { name: "homeImages", maxCount: 20 },
-    { name: "awayImages", maxCount: 20 },
-    { name: "thirdImages", maxCount: 20 },
-    { name: "fourthImages", maxCount: 20 }
+    { name: "homeImages" },
+    { name: "awayImages" },
+    { name: "thirdImages" },
+    { name: "fourthImages" }
   ]),
   (req, res) => {
     try {
       const { title, price, sizes } = req.body;
 
       const kits = {
-        home: (req.files?.homeImages || []).map(fileToUrl),
-        away: (req.files?.awayImages || []).map(fileToUrl),
-        third: (req.files?.thirdImages || []).map(fileToUrl),
-        fourth: (req.files?.fourthImages || []).map(fileToUrl)
+        home: (req.files.homeImages || []).map(f => "/uploads/" + f.filename),
+        away: (req.files.awayImages || []).map(f => "/uploads/" + f.filename),
+        third: (req.files.thirdImages || []).map(f => "/uploads/" + f.filename),
+        fourth: (req.files.fourthImages || []).map(f => "/uploads/" + f.filename)
       };
 
       const info = db
@@ -177,12 +152,7 @@ app.post(
           `INSERT INTO products (title,price,sizes,kits)
            VALUES (?,?,?,?)`
         )
-        .run(
-          title,
-          price,
-          JSON.stringify(normalizeSizes(sizes)),
-          JSON.stringify(normalizeKits(kits))
-        );
+        .run(title, price, sizes, JSON.stringify(kits));
 
       res.json({ ok: true, id: info.lastInsertRowid });
     } catch (e) {
@@ -191,62 +161,35 @@ app.post(
   }
 );
 
+/* ---------- ORDERS ---------- */
+
 app.post("/api/orders", (req, res) => {
   try {
-    const { name, phone, address, items, payment_method } =
-      req.body;
+    const { name, phone, address, items } = req.body;
 
-    if (!name || !phone || !address || !items) {
-      return res
-        .status(400)
-        .json({ error: "Missing info" });
-    }
-
-    let total = 0;
-
-    items.forEach(i => {
-      total +=
-        Number(i.unitPrice || 0) *
-        Number(i.qty || 0);
-    });
-
-    db.prepare(
-      `INSERT INTO orders
-       (name,phone,address,items,total,payment_method)
-       VALUES (?,?,?,?,?,?)`
-    ).run(
-      name,
-      phone,
-      address,
-      JSON.stringify(items),
-      total,
-      payment_method || "COD"
+    const total = items.reduce(
+      (a, b) => a + Number(b.unitPrice) * Number(b.qty),
+      0
     );
 
-    res.json({
-      ok: true,
-      total
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      error: "Order failed"
-    });
+    db.prepare(
+      `INSERT INTO orders (name,phone,address,items,total)
+       VALUES (?,?,?,?,?)`
+    ).run(name, phone, address, JSON.stringify(items), total);
+
+    res.json({ ok: true, total });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
+/* ---------- STATS ---------- */
+
 app.get("/api/admin/stats", isAdmin, (req, res) => {
-  const productsCount = db
-    .prepare("SELECT COUNT(*) c FROM products")
-    .get().c;
-
-  const ordersCount = db
-    .prepare("SELECT COUNT(*) c FROM orders")
-    .get().c;
-
+  const productsCount = db.prepare("SELECT COUNT(*) c FROM products").get().c;
+  const ordersCount = db.prepare("SELECT COUNT(*) c FROM orders").get().c;
   const totalSales =
-    db.prepare("SELECT SUM(total) s FROM orders").get().s ||
-    0;
+    db.prepare("SELECT SUM(total) s FROM orders").get().s || 0;
 
   res.json({
     productsCount,
@@ -255,11 +198,20 @@ app.get("/api/admin/stats", isAdmin, (req, res) => {
   });
 });
 
+/* ---------- HOME ---------- */
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+/* ---------- FALLBACK ---------- */
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
+/* ---------- START SERVER ---------- */
+
 app.listen(PORT, () => {
-  console.log("BK STORE PRO LIVE");
-  console.log(`Server running on port ${PORT}`);
+  console.log("BK STORE PRO running on port", PORT);
 });
