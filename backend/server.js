@@ -13,21 +13,18 @@ const PORT = process.env.PORT || 4000;
 
 app.set("trust proxy", 1);
 
-// ENV
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
 const SESSION_SECRET = process.env.SESSION_SECRET || "change_me";
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
 
-// IMPORTANT
-const frontendPath = path.join(__dirname, "frontend");
+const frontendPath = path.join(__dirname, "../frontend");
 const uploadsPath = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 
-// Middlewares
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -39,16 +36,14 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      secure: false
+      secure: true
     }
   })
 );
 
-// Static
 app.use("/uploads", express.static(uploadsPath));
 app.use(express.static(frontendPath));
 
-// ---------- Helpers ----------
 function isAdmin(req, res, next) {
   if (req.session && req.session.admin) return next();
   return res.status(401).json({ error: "Unauthorized" });
@@ -64,21 +59,31 @@ function safeJsonParse(str, fallback) {
 
 function normalizeSizes(input) {
   const base = { S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
-  const obj = typeof input === "string" ? safeJsonParse(input || "{}", {}) : (input || {});
+  const obj =
+    typeof input === "string"
+      ? safeJsonParse(input || "{}", {})
+      : input || {};
+
   for (const k of Object.keys(base)) {
     const v = Number(obj[k] ?? 0);
     base[k] = Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
   }
+
   return base;
 }
 
 function normalizeKits(input) {
   const base = { home: [], away: [], third: [], fourth: [] };
-  const obj = typeof input === "string" ? safeJsonParse(input || "{}", {}) : (input || {});
+  const obj =
+    typeof input === "string"
+      ? safeJsonParse(input || "{}", {})
+      : input || {};
+
   for (const k of Object.keys(base)) {
     const arr = Array.isArray(obj[k]) ? obj[k] : [];
     base[k] = arr.map(x => String(x || "").trim()).filter(Boolean);
   }
+
   return base;
 }
 
@@ -86,27 +91,32 @@ function fileToUrl(f) {
   return `/uploads/${f.filename}`;
 }
 
-// ---------- Multer ----------
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsPath),
   filename: (req, file, cb) => {
     const safe = file.originalname.replace(/[^\w.\-]+/g, "_");
-    cb(null, Date.now() + "_" + Math.random().toString(16).slice(2) + "_" + safe);
+    cb(
+      null,
+      Date.now() +
+        "_" +
+        Math.random().toString(16).slice(2) +
+        "_" +
+        safe
+    );
   }
 });
 
 const upload = multer({ storage });
 
-// ---------- Config ----------
 app.get("/api/config", (req, res) => {
   res.json({ whatsapp: WHATSAPP_NUMBER });
 });
 
-// ---------- Auth ----------
 app.post("/api/admin/login", (req, res) => {
   const { username, password } = req.body || {};
 
   const okUser = username === ADMIN_USER;
+
   const okPass =
     ADMIN_PASS.startsWith("$2")
       ? bcrypt.compareSync(password, ADMIN_PASS)
@@ -128,9 +138,10 @@ app.get("/api/admin/me", (req, res) => {
   res.json({ admin: !!(req.session && req.session.admin) });
 });
 
-// ---------- Products PUBLIC ----------
 app.get("/api/products", (req, res) => {
-  const rows = db.prepare("SELECT * FROM products ORDER BY id DESC").all();
+  const rows = db
+    .prepare("SELECT * FROM products ORDER BY id DESC")
+    .all();
 
   res.json(
     rows.map(p => ({
@@ -141,7 +152,6 @@ app.get("/api/products", (req, res) => {
   );
 });
 
-// ---------- Create Product ----------
 app.post(
   "/api/products",
   isAdmin,
@@ -181,44 +191,74 @@ app.post(
   }
 );
 
-// ---------- Orders ----------
 app.post("/api/orders", (req, res) => {
-  const { name, phone, address, items } = req.body;
+  try {
+    const { name, phone, address, items, payment_method } =
+      req.body;
 
-  if (!name || !phone || !address) {
-    return res.status(400).json({ error: "Missing info" });
+    if (!name || !phone || !address || !items) {
+      return res
+        .status(400)
+        .json({ error: "Missing info" });
+    }
+
+    let total = 0;
+
+    items.forEach(i => {
+      total +=
+        Number(i.unitPrice || 0) *
+        Number(i.qty || 0);
+    });
+
+    db.prepare(
+      `INSERT INTO orders
+       (name,phone,address,items,total,payment_method)
+       VALUES (?,?,?,?,?,?)`
+    ).run(
+      name,
+      phone,
+      address,
+      JSON.stringify(items),
+      total,
+      payment_method || "COD"
+    );
+
+    res.json({
+      ok: true,
+      total
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Order failed"
+    });
   }
-
-  db.prepare(
-    `INSERT INTO orders (name,phone,address,items)
-     VALUES (?,?,?,?)`
-  ).run(name, phone, address, JSON.stringify(items));
-
-  res.json({ ok: true });
 });
 
-// ---------- Stats ----------
 app.get("/api/admin/stats", isAdmin, (req, res) => {
-  const productsCount = db.prepare("SELECT COUNT(*) c FROM products").get().c;
-  const ordersCount = db.prepare("SELECT COUNT(*) c FROM orders").get().c;
+  const productsCount = db
+    .prepare("SELECT COUNT(*) c FROM products")
+    .get().c;
+
+  const ordersCount = db
+    .prepare("SELECT COUNT(*) c FROM orders")
+    .get().c;
+
+  const totalSales =
+    db.prepare("SELECT SUM(total) s FROM orders").get().s ||
+    0;
 
   res.json({
     productsCount,
-    ordersCount
+    ordersCount,
+    totalSales
   });
 });
 
-// ---------- FRONTEND ----------
-app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// ---------- SPA fallback ----------
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// ---------- Start ----------
 app.listen(PORT, () => {
   console.log("BK STORE PRO LIVE");
   console.log(`Server running on port ${PORT}`);
