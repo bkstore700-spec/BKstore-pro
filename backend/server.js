@@ -9,9 +9,14 @@ const bcrypt = require("bcryptjs");
 const db = require("./db");
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT || 4000);
 
 app.set("trust proxy", 1);
+
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
+const SESSION_SECRET = process.env.SESSION_SECRET || "change_me";
+const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
 
 const frontendPath = path.join(__dirname, "frontend");
 const uploadsPath = path.join(__dirname, "uploads");
@@ -19,11 +24,6 @@ const uploadsPath = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
-
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASS = process.env.ADMIN_PASS || "1234";
-const SESSION_SECRET = process.env.SESSION_SECRET || "secret123";
-const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || "212600000000";
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -49,19 +49,56 @@ function isAdmin(req, res, next) {
   return res.status(401).json({ error: "Unauthorized" });
 }
 
-function safeParse(x, fallback) {
+function safeJsonParse(str, fallback) {
   try {
-    return JSON.parse(x);
+    return JSON.parse(str);
   } catch {
     return fallback;
   }
+}
+
+function normalizeSizes(input) {
+  const base = { S: 0, M: 0, L: 0, XL: 0, XXL: 0 };
+  const obj =
+    typeof input === "string"
+      ? safeJsonParse(input || "{}", {})
+      : (input || {});
+
+  for (const k of Object.keys(base)) {
+    const v = Number(obj[k] ?? 0);
+    base[k] = Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+  }
+
+  return base;
+}
+
+function normalizeKits(input) {
+  const base = { home: [], away: [], third: [], fourth: [] };
+  const obj =
+    typeof input === "string"
+      ? safeJsonParse(input || "{}", {})
+      : (input || {});
+
+  for (const k of Object.keys(base)) {
+    const arr = Array.isArray(obj[k]) ? obj[k] : [];
+    base[k] = arr.map(x => String(x || "").trim()).filter(Boolean);
+  }
+
+  return base;
+}
+
+function fileToUrl(f) {
+  return `/uploads/${f.filename}`;
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadsPath),
   filename: (req, file, cb) => {
     const safe = file.originalname.replace(/[^\w.\-]+/g, "_");
-    cb(null, Date.now() + "_" + safe);
+    cb(
+      null,
+      `${Date.now()}_${Math.random().toString(16).slice(2)}_${safe}`
+    );
   }
 });
 
@@ -69,6 +106,10 @@ const upload = multer({ storage });
 
 app.get("/api/config", (req, res) => {
   res.json({ whatsapp: WHATSAPP_NUMBER });
+});
+
+app.get("/secret-admin-8473.html", (req, res) => {
+  res.sendFile(path.join(frontendPath, "secret-admin-8473.html"));
 });
 
 app.post("/api/admin/login", (req, res) => {
@@ -79,7 +120,7 @@ app.post("/api/admin/login", (req, res) => {
   const okPass =
     ADMIN_PASS.startsWith("$2")
       ? bcrypt.compareSync(String(password || ""), ADMIN_PASS)
-      : String(password || "") === ADMIN_PASS;
+      : String(password || "") === String(ADMIN_PASS);
 
   if (okUser && okPass) {
     req.session.admin = true;
@@ -94,52 +135,54 @@ app.post("/api/admin/logout", (req, res) => {
 });
 
 app.get("/api/admin/me", (req, res) => {
-  res.json({ admin: !!req.session.admin });
+  res.json({ admin: !!(req.session && req.session.admin) });
 });
 
 app.get("/api/products", (req, res) => {
   const rows = db.prepare("SELECT * FROM products ORDER BY id DESC").all();
 
-  const products = rows.map((p) => ({
-    ...p,
-    sizes: safeParse(p.sizes, {}),
-    kits: safeParse(p.kits, {})
-  }));
-
-  res.json(products);
+  res.json(
+    rows.map(p => ({
+      ...p,
+      sizes: normalizeSizes(p.sizes),
+      kits: normalizeKits(p.kits)
+    }))
+  );
 });
 
 app.post(
   "/api/products",
   isAdmin,
   upload.fields([
-    { name: "homeImages" },
-    { name: "awayImages" },
-    { name: "thirdImages" },
-    { name: "fourthImages" }
+    { name: "homeImages", maxCount: 20 },
+    { name: "awayImages", maxCount: 20 },
+    { name: "thirdImages", maxCount: 20 },
+    { name: "fourthImages", maxCount: 20 }
   ]),
   (req, res) => {
     try {
       const { title, price, sizes } = req.body || {};
 
+      if (!title || price === undefined) {
+        return res.status(400).json({ error: "Missing title/price" });
+      }
+
       const kits = {
-        home: (req.files?.homeImages || []).map((f) => "/uploads/" + f.filename),
-        away: (req.files?.awayImages || []).map((f) => "/uploads/" + f.filename),
-        third: (req.files?.thirdImages || []).map((f) => "/uploads/" + f.filename),
-        fourth: (req.files?.fourthImages || []).map((f) => "/uploads/" + f.filename)
+        home: (req.files?.homeImages || []).map(fileToUrl),
+        away: (req.files?.awayImages || []).map(fileToUrl),
+        third: (req.files?.thirdImages || []).map(fileToUrl),
+        fourth: (req.files?.fourthImages || []).map(fileToUrl)
       };
 
-      const info = db
-        .prepare(
-          `INSERT INTO products (title, price, sizes, kits)
-           VALUES (?, ?, ?, ?)`
-        )
-        .run(
-          title,
-          price,
-          sizes,
-          JSON.stringify(kits)
-        );
+      const info = db.prepare(`
+        INSERT INTO products (title, price, sizes, kits)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        String(title).trim(),
+        Number(price),
+        JSON.stringify(normalizeSizes(sizes)),
+        JSON.stringify(normalizeKits(kits))
+      );
 
       res.json({ ok: true, id: info.lastInsertRowid });
     } catch (e) {
@@ -153,10 +196,10 @@ app.put(
   "/api/products/:id",
   isAdmin,
   upload.fields([
-    { name: "homeImages" },
-    { name: "awayImages" },
-    { name: "thirdImages" },
-    { name: "fourthImages" }
+    { name: "homeImages", maxCount: 20 },
+    { name: "awayImages", maxCount: 20 },
+    { name: "thirdImages", maxCount: 20 },
+    { name: "fourthImages", maxCount: 20 }
   ]),
   (req, res) => {
     try {
@@ -167,42 +210,48 @@ app.put(
         return res.status(404).json({ error: "Product not found" });
       }
 
+      const oldKits = normalizeKits(old.kits);
+      const oldSizes = normalizeSizes(old.sizes);
+
       const { title, price, sizes, keepKits } = req.body || {};
 
-      const oldKits = safeParse(old.kits, {
-        home: [],
-        away: [],
-        third: [],
-        fourth: []
-      });
-
-      const kept = keepKits
-        ? safeParse(keepKits, { home: [], away: [], third: [], fourth: [] })
-        : oldKits;
+      const nextTitle = title !== undefined ? String(title).trim() : old.title;
+      const nextPrice = price !== undefined ? Number(price) : Number(old.price);
+      const nextSizes = sizes !== undefined ? normalizeSizes(sizes) : oldSizes;
+      const keep = keepKits ? normalizeKits(keepKits) : oldKits;
 
       const added = {
-        home: (req.files?.homeImages || []).map((f) => "/uploads/" + f.filename),
-        away: (req.files?.awayImages || []).map((f) => "/uploads/" + f.filename),
-        third: (req.files?.thirdImages || []).map((f) => "/uploads/" + f.filename),
-        fourth: (req.files?.fourthImages || []).map((f) => "/uploads/" + f.filename)
+        home: (req.files?.homeImages || []).map(fileToUrl),
+        away: (req.files?.awayImages || []).map(fileToUrl),
+        third: (req.files?.thirdImages || []).map(fileToUrl),
+        fourth: (req.files?.fourthImages || []).map(fileToUrl)
       };
 
-      const finalKits = {
-        home: [...(kept.home || []), ...added.home],
-        away: [...(kept.away || []), ...added.away],
-        third: [...(kept.third || []), ...added.third],
-        fourth: [...(kept.fourth || []), ...added.fourth]
-      };
+      const kitsFinal = { home: [], away: [], third: [], fourth: [] };
+
+      for (const k of Object.keys(kitsFinal)) {
+        const previous = oldKits[k] || [];
+        const kept = keep[k] || [];
+
+        const removed = previous.filter(x => !kept.includes(x));
+        removed.forEach(url => {
+          const filename = path.basename(url);
+          const filePath = path.join(uploadsPath, filename);
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        });
+
+        kitsFinal[k] = [...kept, ...added[k]];
+      }
 
       db.prepare(`
         UPDATE products
         SET title=?, price=?, sizes=?, kits=?
         WHERE id=?
       `).run(
-        title || old.title,
-        price || old.price,
-        sizes || old.sizes,
-        JSON.stringify(finalKits),
+        nextTitle,
+        nextPrice,
+        JSON.stringify(nextSizes),
+        JSON.stringify(normalizeKits(kitsFinal)),
         id
       );
 
@@ -217,6 +266,22 @@ app.put(
 app.delete("/api/products/:id", isAdmin, (req, res) => {
   try {
     const id = Number(req.params.id);
+    const old = db.prepare("SELECT * FROM products WHERE id=?").get(id);
+
+    if (!old) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const kits = normalizeKits(old.kits);
+
+    for (const k of Object.keys(kits)) {
+      for (const url of kits[k]) {
+        const filename = path.basename(url);
+        const filePath = path.join(uploadsPath, filename);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+    }
+
     db.prepare("DELETE FROM products WHERE id=?").run(id);
     res.json({ ok: true });
   } catch (e) {
@@ -240,34 +305,41 @@ app.post("/api/orders", (req, res) => {
         const productId = Number(item.productId);
         const qty = Number(item.qty || 0);
         const size = String(item.size || "").toUpperCase();
+        const kit = String(item.kit || "home").toLowerCase();
+
+        if (!productId || qty <= 0) {
+          throw new Error("Invalid item");
+        }
 
         const product = db.prepare("SELECT * FROM products WHERE id=?").get(productId);
         if (!product) throw new Error("Product not found");
 
-        const sizes = safeParse(product.sizes, {
-          S: 0, M: 0, L: 0, XL: 0, XXL: 0
-        });
-
-        if (!sizes[size] || sizes[size] < qty) {
-          throw new Error(`Out of stock for size ${size}`);
+        const sizesObj = normalizeSizes(product.sizes);
+        if (!sizesObj[size] || sizesObj[size] < qty) {
+          throw new Error(`Out of stock: ${product.title} size ${size}`);
         }
 
-        sizes[size] -= qty;
+        sizesObj[size] -= qty;
+
         db.prepare("UPDATE products SET sizes=? WHERE id=?").run(
-          JSON.stringify(sizes),
+          JSON.stringify(sizesObj),
           productId
         );
 
         total += Number(item.unitPrice || 0) * qty;
+
+        if (!["home", "away", "third", "fourth"].includes(kit)) {
+          throw new Error("Invalid kit");
+        }
       }
 
       db.prepare(`
         INSERT INTO orders (name, phone, address, items, total, payment_method)
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(
-        name,
-        phone,
-        address,
+        String(name).trim(),
+        String(phone).trim(),
+        String(address).trim(),
         JSON.stringify(items),
         total,
         payment_method || "COD"
@@ -280,14 +352,14 @@ app.post("/api/orders", (req, res) => {
     res.json({ ok: true, total });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.message || "Order failed" });
   }
 });
 
 app.get("/api/orders", isAdmin, (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page || 1));
-    const limit = Math.max(1, Number(req.query.limit || 20));
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
     const q = String(req.query.q || "").trim();
 
     const where = q ? `WHERE name LIKE ? OR phone LIKE ?` : ``;
@@ -309,9 +381,9 @@ app.get("/api/orders", isAdmin, (req, res) => {
       page,
       pages,
       total,
-      rows: rows.map((o) => ({
+      rows: rows.map(o => ({
         ...o,
-        items: safeParse(o.items, [])
+        items: safeJsonParse(o.items, [])
       }))
     });
   } catch (e) {
@@ -347,8 +419,8 @@ app.get("/api/admin/stats", isAdmin, (req, res) => {
     `).all().reverse();
 
     const lowStock = db.prepare("SELECT id,title,sizes FROM products").all()
-      .map((p) => {
-        const sizes = safeParse(p.sizes, {});
+      .map(p => {
+        const sizes = normalizeSizes(p.sizes);
         const total = Object.values(sizes).reduce((a, b) => a + Number(b || 0), 0);
         return { id: p.id, title: p.title, total };
       })
