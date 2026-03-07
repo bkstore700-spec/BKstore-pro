@@ -1,11 +1,10 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 
-const dbPath = path.join(__dirname, "store.db");
+const db = new Database(path.join(__dirname, "store.db"));
 
-const db = new Database(dbPath);
+db.pragma("journal_mode = WAL");
 
-// ===== PRODUCTS TABLE =====
 db.prepare(`
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,7 +16,6 @@ CREATE TABLE IF NOT EXISTS products (
 )
 `).run();
 
-// ===== ORDERS TABLE =====
 db.prepare(`
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,19 +23,18 @@ CREATE TABLE IF NOT EXISTS orders (
   phone TEXT,
   address TEXT,
   items TEXT,
-  total REAL,
-  payment_method TEXT,
+  total REAL DEFAULT 0,
+  payment_method TEXT DEFAULT 'COD',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 )
 `).run();
 
-// ===== SAFE MIGRATION =====
 try {
-  db.prepare(`ALTER TABLE orders ADD COLUMN total REAL`).run();
+  db.prepare(`ALTER TABLE orders ADD COLUMN total REAL DEFAULT 0`).run();
 } catch {}
 
 try {
-  db.prepare(`ALTER TABLE orders ADD COLUMN payment_method TEXT`).run();
+  db.prepare(`ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'COD'`).run();
 } catch {}
 
 module.exports = db;
