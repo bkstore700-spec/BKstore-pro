@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cart</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="cart">
+  <div class="container">
+    <div class="navbar">
+      <a class="brand" href="index.html">
+        <img src="logo.png" class="logo-small" />
+        <div>
+          <div class="title">BK STORE</div>
+          <div class="sub">Cart</div>
+        </div>
+      </a>
+
+      <div class="actions">
+        <a class="btn" href="index.html">Store</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="align-items:center; justify-content:space-between">
+        <h2 style="margin:0">سلة المشتريات</h2>
+        <span class="badge">Total: <b id="total">0.00 DH</b></span>
+      </div>
+    </div>
+
+    <div class="grid" id="cartList"></div>
+
+    <div class="panel">
+      <h3 style="margin:0 0 10px 0">معلومات الزبون</h3>
+
+      <div class="row">
+        <input id="cname" placeholder="الاسم" />
+        <input id="cphone" placeholder="رقم الهاتف" />
+      </div>
+
+      <div style="margin-top:10px">
+        <input id="caddress" placeholder="العنوان" />
+      </div>
+
+      <div style="margin-top:10px">
+        <select id="paymentMethod" class="select">
+          <option value="COD">الدفع عند الاستلام (COD)</option>
+        </select>
+      </div>
+
+      <div style="margin-top:12px">
+        <button class="btn red" id="confirmBtn">تأكيد وإرسال عبر WhatsApp</button>
+      </div>
+
+      <div class="small" style="margin-top:8px">سيتم خصم المخزون تلقائياً بعد الطلب ✅</div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

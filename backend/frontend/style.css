@@ -1,0 +1,174 @@
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:#0f0f12;
+  color:#fff;
+}
+a{text-decoration:none;color:inherit}
+input,select,button{
+  font:inherit;
+}
+.container{
+  width:min(1200px,94%);
+  margin:auto;
+  padding:20px 0 40px;
+}
+.navbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.logo-small{
+  width:52px;
+  height:52px;
+  object-fit:contain;
+  border-radius:12px;
+  background:#1a1a22;
+  padding:6px;
+}
+.title{
+  font-weight:700;
+  font-size:22px;
+}
+.sub{
+  color:#aaa;
+  font-size:13px;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.btn{
+  border:none;
+  background:#23232d;
+  color:#fff;
+  padding:11px 16px;
+  border-radius:12px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+.btn.red{
+  background:#b9102a;
+}
+.panel{
+  background:#171720;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:16px;
+  margin-bottom:18px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:16px;
+}
+.card{
+  background:#171720;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  overflow:hidden;
+  position:relative;
+}
+.img{
+  width:100%;
+  aspect-ratio:1/1;
+  background:#111118;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.img img,.mainimg{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.body{
+  padding:14px;
+}
+.price{
+  font-weight:700;
+  font-size:20px;
+  margin:8px 0 12px;
+}
+.kv,.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.pill,.badge{
+  background:#23232d;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:13px;
+}
+.pill.active{
+  background:#b9102a;
+}
+.thumbs{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:10px 0;
+}
+.thumbs img{
+  width:58px;
+  height:58px;
+  object-fit:cover;
+  border-radius:10px;
+  border:2px solid transparent;
+  cursor:pointer;
+}
+.thumbs img.active{
+  border-color:#b9102a;
+}
+.select,input{
+  width:100%;
+  background:#111118;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:12px 14px;
+}
+.out{
+  position:absolute;
+  top:12px;
+  left:12px;
+  z-index:2;
+  background:#b9102a;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+.muted,.small{
+  color:#aaa;
+}
+.table{
+  width:100%;
+  border-collapse:collapse;
+}
+.table th,.table td{
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  text-align:left;
+  vertical-align:top;
+}
+.table .right{text-align:right}
+@media (max-width:700px){
+  .title{font-size:18px}
+  .btn{padding:10px 13px}
+}

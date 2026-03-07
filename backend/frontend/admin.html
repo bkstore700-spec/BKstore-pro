@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="admin">
+  <div class="container">
+    <div class="navbar">
+      <a class="brand" href="index.html">
+        <img src="logo.png" class="logo-small" />
+        <div>
+          <div class="title">BK STORE ADMIN</div>
+          <div class="sub">Dashboard</div>
+        </div>
+      </a>
+
+      <div class="actions">
+        <button class="btn red" id="logoutBtn" type="button">Logout</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="gap:12px;flex-wrap:wrap">
+        <div class="pill">Products: <b id="stProducts">0</b></div>
+        <div class="pill">Orders: <b id="stOrders">0</b></div>
+        <div class="pill">Sales: <b id="stSales">0.00 DH</b></div>
+        <div class="pill">Today Orders: <b id="stToday">0</b></div>
+        <div class="pill">Today Sales: <b id="stTodaySales">0.00 DH</b></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="muted" style="margin-bottom:8px">Orders per day</div>
+        <div class="row" id="perDay" style="gap:8px;flex-wrap:wrap"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div class="muted" style="margin-bottom:8px">Low stock</div>
+        <div class="row" id="lowStock" style="gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0">Add / Edit Product</h3>
+
+      <form id="productForm" onsubmit="return false;">
+        <input type="hidden" id="pid" />
+
+        <div class="row">
+          <input id="ptitle" placeholder="Title" />
+          <input id="pprice" type="number" step="0.01" placeholder="Price" />
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <input id="sS" type="number" min="0" placeholder="S" />
+          <input id="sM" type="number" min="0" placeholder="M" />
+          <input id="sL" type="number" min="0" placeholder="L" />
+          <input id="sXL" type="number" min="0" placeholder="XL" />
+          <input id="sXXL" type="number" min="0" placeholder="XXL" />
+        </div>
+
+        <div class="row" style="margin-top:12px; align-items:flex-start">
+          <div style="flex:1">
+            <div class="muted">HOME images</div>
+            <input id="imgHome" type="file" multiple />
+          </div>
+          <div style="flex:1">
+            <div class="muted">AWAY images</div>
+            <input id="imgAway" type="file" multiple />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px; align-items:flex-start">
+          <div style="flex:1">
+            <div class="muted">THIRD images</div>
+            <input id="imgThird" type="file" multiple />
+          </div>
+          <div style="flex:1">
+            <div class="muted">FOURTH images</div>
+            <input id="imgFourth" type="file" multiple />
+          </div>
+        </div>
+
+        <div id="editImages"></div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn red" id="saveBtn" type="button">Save</button>
+          <button class="btn" id="clearBtn" type="button">Clear</button>
+          <span class="pill" id="saveMsg" style="display:none"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0">Products</h3>
+      <div class="grid" id="adminProducts"></div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0">Orders</h3>
+
+      <div class="row" style="margin-bottom:10px">
+        <input id="qSearch" placeholder="Search by name or phone" />
+        <button class="btn" id="searchBtn" type="button">Search</button>
+        <button class="btn" id="resetBtn" type="button">Reset</button>
+      </div>
+
+      <div style="overflow:auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Payment</th>
+              <th class="right">Total</th>
+              <th>Date</th>
+              <th>Items</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+
+      <div class="row" style="margin-top:12px; justify-content:center; align-items:center">
+        <button class="btn" id="prevPage" type="button">Prev</button>
+        <span class="pill">Page <b id="pg">1</b> / <b id="pgMax">1</b></span>
+        <button class="btn" id="nextPage" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
